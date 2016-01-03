@@ -2,7 +2,7 @@
 <export version="D">
   <design>
     <source>/home/aaron/Desktop/kicad/newcricket/kicad/newcricket.sch</source>
-    <date>Fri 04 Dec 2015 11:15:40 AM EST</date>
+    <date>Sat 19 Dec 2015 12:39:05 PM EST</date>
     <tool>Eeschema (2015-11-17 BZR 6321)-product</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -363,11 +363,11 @@
     <library logical="device">
       <uri>/usr/local/share/kicad/library/device.lib</uri>
     </library>
-    <library logical="capteurs">
-      <uri>/home/aaron/kicad/downloaded_libraries/capteurs.lib</uri>
-    </library>
     <library logical="atmel">
       <uri>/usr/local/share/kicad/library/atmel.lib</uri>
+    </library>
+    <library logical="capteurs">
+      <uri>/home/aaron/kicad/downloaded_libraries/capteurs.lib</uri>
     </library>
   </libraries>
   <nets>
