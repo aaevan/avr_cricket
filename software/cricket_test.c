@@ -29,6 +29,8 @@ void setFlag(int);
 int getFlag();
 volatile int flag = FLAG_NONE;
 
+volatile int f_wdt = 1;
+
 ISR(TIM1_OVF_vect)
 {
     TCNT1 = CHIRP_PITCH; //startcount from CHIRP_PITCH instead from 0
@@ -96,7 +98,7 @@ void watchdog_setup(void) {
     cli(); //disable interrupts
     // If a reset was caused by the Watchdog Timer...
     if(MCUSR & _BV(WDRF)){            
-        MCUSR &= ~_BV(WDRF);                 // Clear the WDT reset flag
+        MCUSR &= ~_BV(WDRF);               // Clear the WDT reset flag
         WDTCR |= (_BV(WDCE) | _BV(WDE));   // Enable the WD Change Bit
         WDTCR = 0x00;                      // Disable the WDT
     }
@@ -104,11 +106,14 @@ void watchdog_setup(void) {
     WDTCR = (1<<WDCE)|(1<<WDE); //set up WDT interrupt
     //Start watchdog timer with 1 second prescaler:
     //WDTCR = (1<<WDIE)|(1<<WDE)|(1<<WDP2)|(1<<WDP1); 
-    WDTCR = (1<<WDIE)|(1<<WDE)|(1<<WDP2)|(1<<WDP1)|(1<<WDP0); 
+    WDTCR = (1<<WDIE)|(1<<WDE)|(1<<WDP2)|(1<<WDP1); 
     sei(); //Enable global interrupts
 }
 
 ISR(WDT_vect) {
+    f_wdt=1;  // set global flag
+    tester(400);
+    tester(200);
     //tester(); //DEBUG
     //PASS???
 }
@@ -152,6 +157,7 @@ void system_sleep() {
     
 void chirp_loop() {
     //turn on interrupts for the length of the chirp.
+    wdt_disable(); // this should fix the WDT interrupting chirping...
     sei();
     int i = 0;
     int j = 0;
@@ -167,17 +173,19 @@ void chirp_loop() {
     }
     //when we're done chirping, turn off interrupts.
     cli();
+    wdt_enable(WDTO_250MS);
 }
 
 //DEBUG LAND-----------------------------------------
-void tester() {
+void tester(int pitch) {
     //turn on interrupts for the length of the chirp.
+    wdt_disable(); // this should fix the WDT interrupting chirping...
     sei();
     delay(100);
     int i = 0;
     int j = 0;
     for(j=0; j<=2; j++) {
-        for(i=0; i<=4000; i++) {
+        for(i=0; i<=pitch; i++) {
             if(getFlag() == FLAG_TOGGLE_LED) {
                 PORTB ^= (1<<PB0);
                 setFlag(FLAG_NONE);
@@ -188,6 +196,7 @@ void tester() {
     }
     //when we're done chirping, turn off interrupts.
     cli();
+    wdt_enable(WDTO_250MS);
 }
 //DEBUG LAND (END) ----------------------------------
 
@@ -197,26 +206,24 @@ int main(void) {
     // WDTCR |= (_BV(WDCE) | _BV(WDE));   // Enable the WD Change Bit
     // WDTCR =   _BV(WDIE) |              // Enable WDT Interrupt
     //_BV(WDP2) | _BV(WDP1);   // Set Timeout to ~1 seconds
-    tester();
     int temp_val = 500;
     int light_level = analog_read(PB2);
     int light_thresh = 850;
     for (;;) {
-        // do sensor readings here
-        light_level = analog_read(PB2);
-        temp_val = analog_read(PB3);
-        delay(temp_val);//800
-        //if we pass the temperature and light level checks...
-        if(light_level > light_thresh) { //TODO: Also, we need to test for temperature too.
-            chirp_loop();
+        if (f_wdt==1) {
+            f_wdt = 0;
+            // do sensor readings here
+            light_level = analog_read(PB2);
+            temp_val = analog_read(PB3);
+            //if we pass the temperature and light level checks...
+            if(light_level > light_thresh) { //TODO: Also, we need to test for temperature too.
+                delay(temp_val);//800
+                chirp_loop();
+            }
+            //otherwise, go to sleep!
+            else {
+                system_sleep();
+            }
         }
-        //otherwise, go to sleep!
-        else {
-            //tester();
-            //tester();
-            system_sleep();
-        }
-        //and in another second (or whatever the Watchdog length is set to) loop again.
-        sei();
     }
 }
